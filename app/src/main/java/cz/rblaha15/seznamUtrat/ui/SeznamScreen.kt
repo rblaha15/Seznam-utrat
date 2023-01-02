@@ -1,9 +1,11 @@
-package cz.rblaha15.seznamUtrat.utraty
+package cz.rblaha15.seznamUtrat.ui
 
-import android.os.Bundle
-import androidx.activity.ComponentActivity
-import androidx.activity.compose.setContent
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.KeyboardOptions
@@ -12,53 +14,38 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PeopleAlt
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.CenterAlignedTopAppBar
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.ListItem
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
 import cz.rblaha15.seznamUtrat.FakeUtratyRepositoryImpl
+import cz.rblaha15.seznamUtrat.MainActivity.Companion.mutate
+import cz.rblaha15.seznamUtrat.MainActivity.Companion.toString
 import cz.rblaha15.seznamUtrat.Razeni
 import cz.rblaha15.seznamUtrat.UtratyRepository
-import cz.rblaha15.seznamUtrat.UtratyRepositoryImpl
-import cz.rblaha15.seznamUtrat.ucastnici.UcastniciActivity
 import cz.rblaha15.seznamUtrat.ui.theme.SeznamUtratTheme
-import java.util.*
-import java.util.Calendar.DAY_OF_MONTH
-import java.util.Calendar.MONTH
 
-lateinit var repoSingleton: UtratyRepository
-
-class MainActivity : ComponentActivity() {
-
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        repoSingleton = UtratyRepositoryImpl(this)
-        setContent {
-            SeznamUtratTheme {
-                // A surface container using the 'background' color from the theme
-                Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-                    MainContent(repoSingleton)
-                }
-            }
-        }
-    }
-}
-
-typealias Datum = Pair<Int, Int>
-
-fun Calendar.toDatum() = Datum(get(DAY_OF_MONTH), get(MONTH) + 1)
-fun Datum.asString() = "$first. $second."
-
-typealias Cas = Triple<Int, Int, Int>
-
-fun Cas.asString() = "$first:$second:$third"
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MainContent(
+fun SeznamScreen(
     repo: UtratyRepository,
+    navigate: (route: String) -> Unit
 ) {
     var razeni by remember { mutableStateOf(Razeni.Datum1) }
 
@@ -69,7 +56,7 @@ fun MainContent(
                 actions = {
                     IconButton(
                         onClick = {
-                            cz.rblaha15.seznamUtrat.utraty.repoSingleton.startActivity(UcastniciActivity::class.java)
+                            navigate("ucastnici")
                         }
                     ) {
                         Icon(Icons.Default.PeopleAlt, "Účastníci")
@@ -78,7 +65,7 @@ fun MainContent(
             )
         },
         bottomBar = {
-            BottomBar({
+            BottomBar(nastavitRazeni = {
                 razeni = it
             }, repo)
         }
@@ -98,7 +85,10 @@ fun MainContent(
                         repo.nazevAkce = it
                     },
                     label = { Text(text = "Název akce") },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text, imeAction = ImeAction.Done),
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Text,
+                        imeAction = ImeAction.Done
+                    ),
                     singleLine = true,
                 )
             }
@@ -124,7 +114,10 @@ fun MainContent(
                     }
                     ListItem(
                         headlineText = {
-                            Text(text = utrata.nazev + " – " + utrata.cena.toDouble().toString(2) + " " + repo.mena)
+                            Text(
+                                text = utrata.nazev + " – " + utrata.cena.toDouble()
+                                    .toString(2) + " " + repo.mena
+                            )
                         },
                         supportingText = {
                             Row(
@@ -134,9 +127,12 @@ fun MainContent(
                             ) {
                                 Text(text = utrata.datum)
                                 Text(text = when {
-                                    utrata.ucastnici.toSet() == repo.seznamUcastniku.map { it.id }.toSet() -> ""
+                                    utrata.ucastnici.toSet() == repo.seznamUcastniku.map { it.id }
+                                        .toSet() -> ""
+
                                     utrata.ucastnici.isEmpty() -> "Žádný účastník"
-                                    else -> repo.seznamUcastniku.filter { it.id in utrata.ucastnici }.joinToString { it.jmeno }
+                                    else -> repo.seznamUcastniku.filter { it.id in utrata.ucastnici }
+                                        .joinToString { it.jmeno }
                                 })
                             }
                         },
@@ -186,20 +182,10 @@ fun MainContent(
     }
 }
 
-internal fun Double.toString(decimalPlaces: Int) = toString()
-    .split(".")
-    .mapIndexed { i, s -> if (i == 1) s.take(decimalPlaces) else s }
-    .joinToString(",")
-
-internal fun <T> List<T>.mutate(transform: MutableList<T>.() -> Unit) = buildList {
-    addAll(this@mutate)
-    transform()
-}
-
 @Preview
 @Composable
-fun MainPreview() {
+fun SeznamPreview() {
     SeznamUtratTheme {
-        MainContent(FakeUtratyRepositoryImpl())
+        SeznamScreen(FakeUtratyRepositoryImpl()) {}
     }
 }

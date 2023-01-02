@@ -1,6 +1,5 @@
-package cz.rblaha15.seznamUtrat.ucastnici
+package cz.rblaha15.seznamUtrat
 
-import cz.rblaha15.seznamUtrat.UtratyRepository
 import java.util.*
 
 data class Ucastnik(

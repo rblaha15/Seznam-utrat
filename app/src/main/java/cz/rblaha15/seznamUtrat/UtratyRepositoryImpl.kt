@@ -6,14 +6,10 @@ import android.content.Intent
 import androidx.activity.ComponentActivity
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.MutableState
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
 import androidx.core.content.edit
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
-import cz.rblaha15.seznamUtrat.ucastnici.Ucastnik
-import cz.rblaha15.seznamUtrat.utraty.Utrata
 import java.io.OutputStream
 
 class UtratyRepositoryImpl(private val ctx: ComponentActivity) : UtratyRepository {
@@ -66,12 +62,7 @@ class UtratyRepositoryImpl(private val ctx: ComponentActivity) : UtratyRepositor
             prefs.edit { putString("seznamUcastniku", Gson().toJson(seznamUcastnikuField.value)) }
         }
 
-    override fun <T : Activity> startActivity(activity: Class<T>) {
-        val i = Intent(ctx, activity)
-        ctx.startActivity(i)
-    }
-
-    private var poVybrani by mutableStateOf<(OutputStream) -> Unit>({})
+    private var poVybrani: (OutputStream) -> Unit = {}
 
     private val activityResultLauncher =
         ctx.registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {

@@ -1,8 +1,5 @@
 package cz.rblaha15.seznamUtrat
 
-import android.app.Activity
-import cz.rblaha15.seznamUtrat.ucastnici.Ucastnik
-import cz.rblaha15.seznamUtrat.utraty.Utrata
 import java.io.OutputStream
 
 class FakeUtratyRepositoryImpl : UtratyRepository {
@@ -31,10 +28,6 @@ class FakeUtratyRepositoryImpl : UtratyRepository {
         set(value) {
             seznamUcastnikuField = value
         }
-
-    override fun <T : Activity> startActivity(activity: Class<T>) {
-
-    }
 
     override fun ulozitSoubor(fileName: String, poVybrani: (OutputStream) -> Unit) {
 

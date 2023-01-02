@@ -1,10 +1,6 @@
-package cz.rblaha15.seznamUtrat.ucastnici
+package cz.rblaha15.seznamUtrat.ui
 
-import android.os.Bundle
-import androidx.activity.ComponentActivity
-import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -21,28 +17,13 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import cz.rblaha15.seznamUtrat.*
-import cz.rblaha15.seznamUtrat.utraty.mutate
+import cz.rblaha15.seznamUtrat.MainActivity.Companion.mutate
+import cz.rblaha15.seznamUtrat.MainActivity.Companion.toString
 import cz.rblaha15.seznamUtrat.ui.theme.SeznamUtratTheme
-import cz.rblaha15.seznamUtrat.utraty.repoSingleton
-import cz.rblaha15.seznamUtrat.utraty.toString
-
-class UcastniciActivity : ComponentActivity() {
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        setContent {
-            SeznamUtratTheme {
-                // A surface container using the 'background' color from the theme
-                Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-                    UcastniciContent(repoSingleton)
-                }
-            }
-        }
-    }
-}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun UcastniciContent(
+fun UcastniciScreen(
     repo: UtratyRepository,
 ) {
     Scaffold(
@@ -67,7 +48,7 @@ fun UcastniciContent(
             modifier = Modifier
                 .padding(paddingValues)
         ) {
-            items(repo.seznamUcastniku) { ucastnik ->
+            items(repo.seznamUcastniku, key = { it.id }) { ucastnik ->
                 ListItem(
                     headlineText = {
                         Row(
@@ -129,6 +110,6 @@ fun UcastniciContent(
 @Composable
 fun UcastniciPreview() {
     SeznamUtratTheme {
-        UcastniciContent(FakeUtratyRepositoryImpl())
+        UcastniciScreen(FakeUtratyRepositoryImpl())
     }
 }

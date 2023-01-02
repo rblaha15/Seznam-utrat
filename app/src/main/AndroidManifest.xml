@@ -13,11 +13,8 @@
         android:theme="@style/Theme.SeznamUtrat"
         tools:targetApi="31">
         <activity
-            android:name=".ucastnici.UcastniciActivity"
-            android:exported="false"
-            android:theme="@style/Theme.SeznamUtrat" />
-        <activity
-            android:name=".utraty.MainActivity"
+            android:windowSoftInputMode="adjustResize"
+            android:name=".MainActivity"
             android:exported="true"
             android:theme="@style/Theme.SeznamUtrat">
             <intent-filter>

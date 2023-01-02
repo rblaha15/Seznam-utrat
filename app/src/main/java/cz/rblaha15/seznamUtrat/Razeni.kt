@@ -6,7 +6,6 @@ import androidx.compose.material.icons.filled.Money
 import androidx.compose.material.icons.filled.NorthEast
 import androidx.compose.material.icons.filled.SouthEast
 import androidx.compose.ui.graphics.vector.ImageVector
-import cz.rblaha15.seznamUtrat.utraty.Utrata
 import java.util.*
 import kotlin.Comparator
 
