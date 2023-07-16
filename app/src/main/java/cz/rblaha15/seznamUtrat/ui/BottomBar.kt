@@ -33,8 +33,16 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import cz.rblaha15.seznamUtrat.Razeni
 import cz.rblaha15.seznamUtrat.UtratyRepository
+import cz.rblaha15.seznamUtrat.asString
 import cz.rblaha15.seznamUtrat.cloveka
 import cz.rblaha15.seznamUtrat.toString
+
+const val PAGE_WIDTH = 595 // PostScripts (1/72th of an inch)
+const val PAGE_HEIGHT = 842 // PostScripts (1/72th of an inch)
+const val PRINTABLE_WIDTH = 482 // PostScripts (1/72th of an inch)
+const val PRINTABLE_HEIGHT = 700 // PostScripts (1/72th of an inch)
+const val VERTICAL_PADDING = (PAGE_HEIGHT - PRINTABLE_HEIGHT) / 2 // PostScripts (1/72th of an inch)
+const val HORIZONTAL_PADDING = (PAGE_WIDTH - PRINTABLE_WIDTH) / 2 // PostScripts (1/72th of an inch)
 
 @Composable
 fun BottomBar(
@@ -121,7 +129,6 @@ fun BottomBar(
                         val text = """
                             |${nazevAkce}
                             |
-                            |
                             |Celkem utraceno: ${
                             seznamUtrat.sumOf { it.cena.toDouble() }.toString(2)
                         } $mena
@@ -133,12 +140,11 @@ fun BottomBar(
                                     seznamUtrat.cloveka(it.id).sumOf { utrata -> utrata.cena.toDouble() }
                                 }
                                 .joinToString("\n") { ucastnik ->
-                                    "|${ucastnik.jmeno} – ${
+                                    "|    ${ucastnik.jmeno} – ${
                                         seznamUtrat.cloveka(ucastnik.id).sumOf { (it.cena.toDouble() / it.ucastnici.size) }
                                     } $mena"
                                 }
                             }
-                            |
                             |
                             |Seznam útrat:
                             ${
@@ -153,7 +159,7 @@ fun BottomBar(
                                         else ""
 
                                     with(utrata) {
-                                        "|$datum – ${
+                                        "|    ${datum.asString()} – ${
                                             cena.toDouble().toString(2)
                                         } $mena – $nazev$ucastnici"
                                     }
@@ -165,51 +171,57 @@ fun BottomBar(
                         var pageNumber = 1
 
                         val pdfDocument = PdfDocument()
-                        var pageInfo = PdfDocument.PageInfo.Builder(300, 600, pageNumber).create()
+                        var pageInfo = PdfDocument.PageInfo.Builder(PAGE_WIDTH, PAGE_HEIGHT, pageNumber).create()
                         var page = pdfDocument.startPage(pageInfo)
 
                         val paint = Paint()
-                        val x = 10F
-                        var y = 25F
+                        val capitalPaint = Paint().apply {
+                            textSize = 20F
 
-                        text.split("\n").forEach { line ->
+                        }
+                        val x = HORIZONTAL_PADDING.toFloat()
+                        var y = VERTICAL_PADDING.toFloat()
+
+                        text.split("\n").forEachIndexed { index, line ->
+                            val localPaint = if (index == 0 || index == 2) capitalPaint else paint
+
                             if (line.isEmpty()) {
-                                page.canvas.drawText(line, x, y, paint)
-                                y += paint.descent() - paint.ascent()
-                                return@forEach
+                                page.canvas.drawText(line, x, y, localPaint)
+                                y += localPaint.descent() - localPaint.ascent()
+                                return@forEachIndexed
                             }
 
                             var segment = line
-                            var endIndex: Int
 
                             while (segment.isNotEmpty()) { // dokud zbývá text
 
-                                endIndex =
-                                    paint.breakText(segment, true, 280F, null) // kam už budeme psát
+                                var endIndex =
+                                    localPaint.breakText(segment, true, PRINTABLE_WIDTH.toFloat(), null) // kam už budeme psát
 
                                 if (endIndex < segment.lastIndex) { // pokud něco zbyde, tak ať to je rozdělený na mezeře
-                                    endIndex = segment.substring(0, endIndex).lastIndexOf(" ")
+                                    segment.substring(0, endIndex).lastIndexOf(" ").let {
+                                        if (it != -1) endIndex = it
+                                    }
                                 }
 
                                 page.canvas.drawText(
                                     segment.substring(0, endIndex),
                                     x,
                                     y,
-                                    paint
+                                    localPaint
                                 ) // namalovat
 
                                 segment = segment.substring(endIndex)
                                     .removePrefix(" ") // budeme malovat zbytek
 
-                                y += paint.descent() - paint.ascent()
-                                if (y >= 575) {
+                                y += localPaint.descent() - localPaint.ascent()
+                                if (y >= PAGE_WIDTH - HORIZONTAL_PADDING) {
 
                                     pdfDocument.finishPage(page)
 
-                                    pageInfo = PdfDocument.PageInfo.Builder(300, 600, pageNumber++)
-                                        .create()
+                                    pageInfo = PdfDocument.PageInfo.Builder(PAGE_WIDTH, PAGE_HEIGHT, pageNumber++).create()
                                     page = pdfDocument.startPage(pageInfo)
-                                    y = 25F
+                                    y = VERTICAL_PADDING.toFloat()
                                 }
                             }
                         }
