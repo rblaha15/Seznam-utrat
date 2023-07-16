@@ -1,8 +1,8 @@
 package cz.rblaha15.seznamUtrat
 
 import android.os.Bundle
+import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.appcompat.app.AppCompatActivity
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -16,7 +16,7 @@ import cz.rblaha15.seznamUtrat.ui.theme.SeznamUtratTheme
 
 private lateinit var repo: UtratyRepository
 
-class MainActivity : AppCompatActivity() {
+class MainActivity : ComponentActivity() {
     init {
         if (!::repo.isInitialized)
             repo = UtratyRepositoryImpl(this)
