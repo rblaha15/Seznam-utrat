@@ -5,62 +5,87 @@ import android.content.Context
 import android.content.Intent
 import androidx.activity.ComponentActivity
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.runtime.MutableState
-import androidx.compose.runtime.mutableStateOf
-import androidx.core.content.edit
-import com.google.gson.Gson
-import com.google.gson.reflect.TypeToken
+import androidx.datastore.preferences.SharedPreferencesMigration
+import androidx.datastore.preferences.core.PreferenceDataStoreFactory
+import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.datastore.preferences.preferencesDataStoreFile
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.launch
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 import java.io.OutputStream
 
 class UtratyRepositoryImpl(private val ctx: ComponentActivity) : UtratyRepository {
 
-    private val prefs = ctx.getSharedPreferences("PREFS_SEZNAM_UTRAT_RBLAHA15", Context.MODE_PRIVATE)
+    private val prefs = PreferenceDataStoreFactory.create(
+        migrations = listOf(
+            SharedPreferencesMigration(
+                produceSharedPreferences = {
+                    ctx.getSharedPreferences("PREFS_SEZNAM_UTRAT_RBLAHA15", Context.MODE_PRIVATE)
+                }
+            )
+        )
+    ) {
+        ctx.preferencesDataStoreFile("PREFS_SEZNAM_UTRAT_RBLAHA15")
+    }
 
-    private lateinit var nazevAkceField: MutableState<String>
-    override var nazevAkce: String
-        get() {
-            if (!::nazevAkceField.isInitialized)
-                nazevAkceField = mutableStateOf(prefs.getString("nazevAkce", "") ?: "")
-            return nazevAkceField.value
+    object Keys {
+        val NAZEV_AKCE = stringPreferencesKey("nazevAkce")
+        val MENA = stringPreferencesKey("mena")
+        val UTRATY = stringPreferencesKey("seznamUtrat")
+        val UCASTNICI = stringPreferencesKey("seznamUcastniku")
+    }
+
+    override val mena: Flow<String> = prefs.data.map {
+        it[Keys.MENA] ?: "Kč"
+    }
+
+    override fun mena(mena: String) {
+        ctx.lifecycleScope.launch {
+            prefs.edit {
+                it[Keys.MENA] = mena
+            }
         }
-        set(value) {
-            nazevAkceField.value = value
-            prefs.edit { putString("nazevAkce", nazevAkceField.value) }
+    }
+
+    override val nazevAkce: Flow<String> = prefs.data.map {
+        it[Keys.NAZEV_AKCE] ?: ""
+    }
+
+    override fun nazevAkce(nazevAkce: String) {
+        ctx.lifecycleScope.launch {
+            prefs.edit {
+                it[Keys.NAZEV_AKCE] = nazevAkce
+            }
         }
-    private lateinit var menaField: MutableState<String>
-    override var mena: String
-        get() {
-            if (!::menaField.isInitialized)
-                menaField = mutableStateOf(prefs.getString("mena", "Kč") ?: "Kč")
-            return menaField.value
+    }
+
+    override val seznamUtrat: Flow<List<Utrata>> = prefs.data.map {
+        it[Keys.UTRATY]?.fromJson() ?: emptyList()
+    }
+
+    override fun seznamUtrat(seznamUtrat: List<Utrata>) {
+        ctx.lifecycleScope.launch {
+            prefs.edit {
+                it[Keys.UTRATY] = seznamUtrat.toJson()
+            }
         }
-        set(value) {
-            menaField.value = value
-            prefs.edit { putString("mena", menaField.value) }
+    }
+
+    override val seznamUcastniku: Flow<List<Ucastnik>> = prefs.data.map {
+        it[Keys.UCASTNICI]?.fromJson() ?: emptyList()
+    }
+
+    override fun seznamUcastniku(seznamUcastniku: List<Ucastnik>) {
+        ctx.lifecycleScope.launch {
+            prefs.edit {
+                it[Keys.UCASTNICI] = seznamUcastniku.toJson()
+            }
         }
-    private lateinit var seznamUtratField: MutableState<List<Utrata>>
-    override var seznamUtrat: List<Utrata>
-        get() {
-            if (!::seznamUtratField.isInitialized)
-                seznamUtratField = mutableStateOf(Gson().fromJson(prefs.getString("seznamUtrat", "[]"), object : TypeToken<List<Utrata>>() {}.type) ?: emptyList())
-            return seznamUtratField.value
-        }
-        set(value) {
-            seznamUtratField.value = value
-            prefs.edit { putString("seznamUtrat", Gson().toJson(seznamUtratField.value)) }
-        }
-    private lateinit var seznamUcastnikuField: MutableState<List<Ucastnik>>
-    override var seznamUcastniku: List<Ucastnik>
-        get() {
-            if (!::seznamUcastnikuField.isInitialized)
-                seznamUcastnikuField = mutableStateOf(Gson().fromJson(prefs.getString("seznamUcastniku", "[]"), object : TypeToken<List<Ucastnik>>() {}.type) ?: emptyList())
-            println(seznamUcastnikuField.value)
-            return seznamUcastnikuField.value
-        }
-        set(value) {
-            seznamUcastnikuField.value = value
-            prefs.edit { putString("seznamUcastniku", Gson().toJson(seznamUcastnikuField.value)) }
-        }
+    }
 
     private var poVybrani: (OutputStream) -> Unit = {}
 
@@ -69,7 +94,7 @@ class UtratyRepositoryImpl(private val ctx: ComponentActivity) : UtratyRepositor
 
             if (it.resultCode == Activity.RESULT_OK) {
                 val uri = it.data!!.data!!
-                poVybrani(ctx.contentResolver.openOutputStream(uri)!!)
+                ctx.contentResolver.openOutputStream(uri)!!.use(poVybrani)
             }
         }
 
@@ -86,3 +111,6 @@ class UtratyRepositoryImpl(private val ctx: ComponentActivity) : UtratyRepositor
         activityResultLauncher.launch(intent)
     }
 }
+
+private inline fun <reified T> String.fromJson(): T = Json.decodeFromString(this)
+private inline fun <reified T> T.toJson(): String = Json.encodeToString(this)

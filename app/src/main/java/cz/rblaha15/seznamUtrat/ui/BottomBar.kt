@@ -24,27 +24,31 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import cz.rblaha15.seznamUtrat.MainActivity.Companion.asString
-import cz.rblaha15.seznamUtrat.MainActivity.Companion.toDatum
-import cz.rblaha15.seznamUtrat.MainActivity.Companion.toString
 import cz.rblaha15.seznamUtrat.Razeni
-import cz.rblaha15.seznamUtrat.Utrata
 import cz.rblaha15.seznamUtrat.UtratyRepository
-import java.util.Calendar
+import cz.rblaha15.seznamUtrat.cloveka
+import cz.rblaha15.seznamUtrat.toString
 
 @Composable
 fun BottomBar(
     nastavitRazeni: (Razeni) -> Unit,
+    otevritDialog: () -> Unit,
     repo: UtratyRepository,
 ) = Column {
+    val seznamUtrat by repo.seznamUtrat.collectAsState(emptyList())
+    val seznamUcastniku by repo.seznamUcastniku.collectAsState(emptyList())
+    val mena by repo.mena.collectAsState("")
+    val nazevAkce by repo.nazevAkce.collectAsState("")
+
     Text(
-        text = "Celkem utraceno: ${repo.seznamUtrat.sumOf { it.cena.toDouble() }.toString(2)} ${repo.mena}",
+        text = "Celkem utraceno: ${seznamUtrat.sumOf { it.cena.toDouble() }.toString(2)} $mena",
         modifier = Modifier
             .fillMaxWidth()
             .padding(all = 8.dp),
@@ -53,7 +57,7 @@ fun BottomBar(
 
     BottomAppBar(
         actions = {
-            var menuRazeni by remember { mutableStateOf(false) }
+            var menuRazeni by rememberSaveable { mutableStateOf(false) }
             DropdownMenu(
                 expanded = menuRazeni,
                 onDismissRequest = {
@@ -79,7 +83,7 @@ fun BottomBar(
             ) {
                 Icon(Icons.Default.Sort, "Seřadit")
             }
-            var menuMena by remember { mutableStateOf(false) }
+            var menuMena by rememberSaveable { mutableStateOf(false) }
             DropdownMenu(
                 expanded = menuMena,
                 onDismissRequest = {
@@ -94,11 +98,11 @@ fun BottomBar(
                     DropdownMenuItem(
                         text = { Text(text = it) },
                         onClick = {
-                            repo.mena = it
+                            repo.mena(it)
                             menuMena = false
                         },
                         leadingIcon = {
-                            if (repo.mena == it)
+                            if (mena == it)
                                 Icon(Icons.Default.Check, null)
                         }
                     )
@@ -113,102 +117,118 @@ fun BottomBar(
             }
             IconButton(
                 onClick = {
-                    repo.ulozitSoubor(repo.nazevAkce) { outputStream ->
-                        repo.apply {
-
-                            val text = """
+                    repo.ulozitSoubor(nazevAkce) { outputStream ->
+                        val text = """
                             |${nazevAkce}
                             |
                             |
-                            |Celkem utraceno: ${seznamUtrat.sumOf { it.cena.toDouble() }.toString(2)} $mena
+                            |Celkem utraceno: ${
+                            seznamUtrat.sumOf { it.cena.toDouble() }.toString(2)
+                        } $mena
                             |
                             |Útraty za jednotlivé účastníky:
                             ${
-                                seznamUcastniku
-                                    .sortedByDescending { it.utraty(repo).sumOf { utrata -> utrata.cena.toDouble() } }
-                                    .joinToString("\n") { ucastnik ->
-                                        "|${ucastnik.jmeno} – ${ucastnik.utraty(repo).sumOf { (it.cena.toDouble() / it.ucastnici.size) }} $mena"
-                                    }
+                            seznamUcastniku
+                                .sortedByDescending { 
+                                    seznamUtrat.cloveka(it.id).sumOf { utrata -> utrata.cena.toDouble() }
+                                }
+                                .joinToString("\n") { ucastnik ->
+                                    "|${ucastnik.jmeno} – ${
+                                        seznamUtrat.cloveka(ucastnik.id).sumOf { (it.cena.toDouble() / it.ucastnici.size) }
+                                    } $mena"
+                                }
                             }
                             |
                             |
                             |Seznam útrat:
                             ${
-                                seznamUtrat.sortedWith(Razeni.Datum2.razeni).joinToString("\n") { utrata ->
-                                    val ucastnici = if (utrata.ucastnici != seznamUcastniku.map { it.id })
-                                        " – pouze ${seznamUcastniku.filter { it.id in utrata.ucastnici }.joinToString { it.jmeno }}"
-                                    else ""
+                            seznamUtrat.sortedWith(Razeni.Datum2.razeni)
+                                .joinToString("\n") { utrata ->
+                                    val ucastnici =
+                                        if (utrata.ucastnici != seznamUcastniku.map { it.id })
+                                            " – pouze ${
+                                                seznamUcastniku.filter { it.id in utrata.ucastnici }
+                                                    .joinToString { it.jmeno }
+                                            }"
+                                        else ""
 
                                     with(utrata) {
-                                        "|$datum – ${cena.toDouble().toString(2)} $mena – $nazev$ucastnici"
+                                        "|$datum – ${
+                                            cena.toDouble().toString(2)
+                                        } $mena – $nazev$ucastnici"
                                     }
                                 }
-                            }
+                        }
                             |
                             """.trimMargin(marginPrefix = "|")
 
-                            var pageNumber = 1
+                        var pageNumber = 1
 
-                            val pdfDocument = PdfDocument()
-                            var pageInfo = PdfDocument.PageInfo.Builder(300, 600, pageNumber).create()
-                            var page = pdfDocument.startPage(pageInfo)
+                        val pdfDocument = PdfDocument()
+                        var pageInfo = PdfDocument.PageInfo.Builder(300, 600, pageNumber).create()
+                        var page = pdfDocument.startPage(pageInfo)
 
-                            val paint = Paint()
-                            val x = 10F
-                            var y = 25F
+                        val paint = Paint()
+                        val x = 10F
+                        var y = 25F
 
-                            text.split("\n").forEach { line ->
-                                if (line.isEmpty()) {
-                                    page.canvas.drawText(line, x, y, paint)
-                                    y += paint.descent() - paint.ascent()
-                                    return@forEach
-                                }
-
-                                var segment = line
-                                var endIndex: Int
-
-                                while (segment.isNotEmpty()) { // dokud zbývá text
-
-                                    endIndex = paint.breakText(segment, true, 280F, null) // kam už budeme psát
-
-                                    if (endIndex < segment.lastIndex) { // pokud něco zbyde, tak ať to je rozdělený na mezeře
-                                        endIndex = segment.substring(0, endIndex).lastIndexOf(" ")
-                                    }
-
-                                    page.canvas.drawText(segment.substring(0, endIndex), x, y, paint) // namalovat
-
-                                    segment = segment.substring(endIndex).removePrefix(" ") // budeme malovat zbytek
-
-                                    y += paint.descent() - paint.ascent()
-                                    if (y >= 575) {
-
-                                        pdfDocument.finishPage(page)
-
-                                        pageInfo = PdfDocument.PageInfo.Builder(300, 600, pageNumber++).create()
-                                        page = pdfDocument.startPage(pageInfo)
-                                        y = 25F
-                                    }
-                                }
+                        text.split("\n").forEach { line ->
+                            if (line.isEmpty()) {
+                                page.canvas.drawText(line, x, y, paint)
+                                y += paint.descent() - paint.ascent()
+                                return@forEach
                             }
 
-                            pdfDocument.finishPage(page)
+                            var segment = line
+                            var endIndex: Int
 
-                            try {
-                                pdfDocument.writeTo(outputStream)
-                            } catch (e: Exception) {
-                                e.printStackTrace()
+                            while (segment.isNotEmpty()) { // dokud zbývá text
+
+                                endIndex =
+                                    paint.breakText(segment, true, 280F, null) // kam už budeme psát
+
+                                if (endIndex < segment.lastIndex) { // pokud něco zbyde, tak ať to je rozdělený na mezeře
+                                    endIndex = segment.substring(0, endIndex).lastIndexOf(" ")
+                                }
+
+                                page.canvas.drawText(
+                                    segment.substring(0, endIndex),
+                                    x,
+                                    y,
+                                    paint
+                                ) // namalovat
+
+                                segment = segment.substring(endIndex)
+                                    .removePrefix(" ") // budeme malovat zbytek
+
+                                y += paint.descent() - paint.ascent()
+                                if (y >= 575) {
+
+                                    pdfDocument.finishPage(page)
+
+                                    pageInfo = PdfDocument.PageInfo.Builder(300, 600, pageNumber++)
+                                        .create()
+                                    page = pdfDocument.startPage(pageInfo)
+                                    y = 25F
+                                }
                             }
-
-                            pdfDocument.close()
-
-                            outputStream.close()
                         }
+
+                        pdfDocument.finishPage(page)
+
+                        try {
+                            pdfDocument.writeTo(outputStream)
+                        } catch (e: Exception) {
+                            e.printStackTrace()
+                        }
+
+                        pdfDocument.close()
                     }
                 }
             ) {
                 Icon(Icons.Default.Download, "Stáhnout seznam")
             }
-            var dialogOdstranit by remember { mutableStateOf(false) }
+            var dialogOdstranit by rememberSaveable { mutableStateOf(false) }
             if (dialogOdstranit) AlertDialog(
                 onDismissRequest = {
                     dialogOdstranit = false
@@ -216,9 +236,9 @@ fun BottomBar(
                 confirmButton = {
                     TextButton(
                         onClick = {
-                            repo.seznamUtrat = emptyList()
-                            repo.seznamUcastniku = emptyList()
-                            repo.nazevAkce = ""
+                            repo.seznamUtrat(emptyList())
+                            repo.seznamUcastniku(emptyList())
+                            repo.nazevAkce("")
                             dialogOdstranit = false
                         }
                     ) {
@@ -251,14 +271,13 @@ fun BottomBar(
         },
         floatingActionButton = {
             Box {
-                var menu by remember { mutableStateOf(false) }
-                var opravduNaNikoho by remember { mutableStateOf(false) }
+                var opravduNaNikoho by rememberSaveable { mutableStateOf(false) }
                 FloatingActionButton(
                     onClick = {
-                        if (repo.seznamUcastniku.isEmpty())
+                        if (seznamUcastniku.isEmpty())
                             opravduNaNikoho = true
                         else
-                            menu = true
+                            otevritDialog()
                     },
                 ) {
                     Icon(Icons.Default.AddCircle, "Přidat útratu")
@@ -271,7 +290,7 @@ fun BottomBar(
                         TextButton(
                             onClick = {
                                 opravduNaNikoho = false
-                                menu = true
+                                otevritDialog()
                             }
                         ) {
                             Text(text = "Ano, pokračovat")
@@ -293,68 +312,6 @@ fun BottomBar(
                         Text("Opravdu chcete přidat útratu bez účastníků?")
                     },
                 )
-                var zobrazit by remember { mutableStateOf(false) }
-                var naNejakeUcastniky by remember { mutableStateOf(false) }
-                var sJinymDatem by remember { mutableStateOf(false) }
-                NovejDialog(
-                    pocatecniUtrata = Utrata(
-                        datum = Calendar.getInstance().toDatum().asString(),
-                        cas = Calendar.getInstance().let { "${it[Calendar.HOUR_OF_DAY]}:${it[Calendar.MINUTE]}:${it[Calendar.SECOND]}" },
-                        cena = 0F,
-                        nazev = "",
-                        ucastnici = repo.seznamUcastniku.filter { it.aktivovan }.map { it.id },
-                    ),
-                    zobrazit = zobrazit,
-                    schovat = {
-                        naNejakeUcastniky = false
-                        sJinymDatem = false
-                        zobrazit = false
-                    },
-                    repo = repo,
-                    naNejakeUcastniky = naNejakeUcastniky,
-                    sJinymDatem = sJinymDatem,
-                ) { utrata ->
-                    repo.seznamUtrat += utrata
-                }
-                DropdownMenu(
-                    expanded = menu,
-                    onDismissRequest = {
-                        menu = false
-                    }
-                ) {
-                    DropdownMenuItem(
-                        text = { Text(text = "Běžná útrata") },
-                        onClick = {
-                            menu = false
-                            zobrazit = true
-                        }
-                    )
-                    DropdownMenuItem(
-                        text = { Text(text = "Pouze na nějaké účastníky") },
-                        onClick = {
-                            menu = false
-                            naNejakeUcastniky = true
-                            zobrazit = true
-                        }
-                    )
-                    DropdownMenuItem(
-                        text = { Text(text = "S jiným datem") },
-                        onClick = {
-                            menu = false
-                            sJinymDatem = true
-                            zobrazit = true
-                        }
-                    )
-                    DropdownMenuItem(
-                        text = { Text(text = "Pouze na nějaké účastníky s jiným datem") },
-                        onClick = {
-                            menu = false
-                            sJinymDatem = true
-                            naNejakeUcastniky = true
-                            zobrazit = true
-                        }
-                    )
-                }
             }
         }
     )

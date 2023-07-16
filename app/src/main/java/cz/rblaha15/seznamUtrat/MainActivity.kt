@@ -13,34 +13,19 @@ import androidx.navigation.compose.rememberNavController
 import cz.rblaha15.seznamUtrat.ui.SeznamScreen
 import cz.rblaha15.seznamUtrat.ui.UcastniciScreen
 import cz.rblaha15.seznamUtrat.ui.theme.SeznamUtratTheme
-import java.util.Calendar
-import java.util.Calendar.DAY_OF_MONTH
-import java.util.Calendar.MONTH
 
+private lateinit var repo: UtratyRepository
 
 class MainActivity : AppCompatActivity() {
-
-    companion object {
-
-        fun Calendar.toDatum() = Datum(get(DAY_OF_MONTH), get(MONTH) + 1)
-        fun Datum.asString() = "$first. $second."
-        fun Cas.asString() = "$first:$second:$third"
-        fun Double.toString(decimalPlaces: Int) = toString()
-            .split(".")
-            .mapIndexed { i, s -> if (i == 1) s.take(decimalPlaces) else s }
-            .joinToString(",")
-        fun <T> List<T>.mutate(transform: MutableList<T>.() -> Unit) = buildList {
-            addAll(this@mutate)
-            transform()
-        }
+    init {
+        if (!::repo.isInitialized)
+            repo = UtratyRepositoryImpl(this)
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        val repo = UtratyRepositoryImpl(this)
         setContent {
             SeznamUtratTheme {
-                // A surface container using the 'background' color from the theme
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
@@ -65,5 +50,12 @@ class MainActivity : AppCompatActivity() {
     }
 }
 
-typealias Datum = Pair<Int, Int>
-typealias Cas = Triple<Int, Int, Int>
+fun Double.toString(decimalPlaces: Int) = toString()
+    .split(".")
+    .mapIndexed { i, s -> if (i == 1) s.take(decimalPlaces) else s }
+    .joinToString(",")
+
+fun <T> List<T>.mutate(transform: MutableList<T>.() -> Unit) = buildList {
+    addAll(this@mutate)
+    transform()
+}

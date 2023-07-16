@@ -1,16 +1,21 @@
 package cz.rblaha15.seznamUtrat
 
+import kotlinx.coroutines.flow.Flow
 import java.io.OutputStream
 
 interface UtratyRepository {
 
-    var mena: String
+    val mena: Flow<String>
+    fun mena(mena: String)
 
-    var nazevAkce: String
+    val nazevAkce: Flow<String>
+    fun nazevAkce(nazevAkce: String)
 
-    var seznamUtrat: List<Utrata>
+    val seznamUtrat: Flow<List<Utrata>>
+    fun seznamUtrat(seznamUtrat: List<Utrata>)
 
-    var seznamUcastniku: List<Ucastnik>
+    val seznamUcastniku: Flow<List<Ucastnik>>
+    fun seznamUcastniku(seznamUcastniku: List<Ucastnik>)
 
     fun ulozitSoubor(fileName: String, poVybrani: (OutputStream) -> Unit)
 }

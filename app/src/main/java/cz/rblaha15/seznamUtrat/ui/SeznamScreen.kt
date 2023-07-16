@@ -25,19 +25,24 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.tooling.preview.Preview
 import cz.rblaha15.seznamUtrat.FakeUtratyRepositoryImpl
-import cz.rblaha15.seznamUtrat.MainActivity.Companion.mutate
-import cz.rblaha15.seznamUtrat.MainActivity.Companion.toString
 import cz.rblaha15.seznamUtrat.Razeni
+import cz.rblaha15.seznamUtrat.Utrata
 import cz.rblaha15.seznamUtrat.UtratyRepository
+import cz.rblaha15.seznamUtrat.asString
+import cz.rblaha15.seznamUtrat.mutate
+import cz.rblaha15.seznamUtrat.nova
+import cz.rblaha15.seznamUtrat.toString
 import cz.rblaha15.seznamUtrat.ui.theme.SeznamUtratTheme
 
 
@@ -47,7 +52,14 @@ fun SeznamScreen(
     repo: UtratyRepository,
     navigate: (route: String) -> Unit
 ) {
-    var razeni by remember { mutableStateOf(Razeni.Datum1) }
+    var razeni by rememberSaveable { mutableStateOf(Razeni.Datum1) }
+    val seznamUtrat by repo.seznamUtrat.collectAsState(emptyList())
+    val seznamUcastniku by repo.seznamUcastniku.collectAsState(emptyList())
+    val nazevAkce by repo.nazevAkce.collectAsState("")
+    val mena by repo.mena.collectAsState("")
+
+    var upravitUtratuDialog by rememberSaveable { mutableStateOf(null as Utrata?) }
+    var novaUtrataDialog by rememberSaveable { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
@@ -67,6 +79,8 @@ fun SeznamScreen(
         bottomBar = {
             BottomBar(nastavitRazeni = {
                 razeni = it
+            }, otevritDialog = {
+                novaUtrataDialog = true
             }, repo)
         }
     ) { paddingValues ->
@@ -80,59 +94,42 @@ fun SeznamScreen(
                 horizontalArrangement = Arrangement.Center
             ) {
                 OutlinedTextField(
-                    value = repo.nazevAkce,
+                    value = nazevAkce,
                     onValueChange = {
-                        repo.nazevAkce = it
+                        repo.nazevAkce(it)
                     },
                     label = { Text(text = "Název akce") },
                     keyboardOptions = KeyboardOptions(
-                        keyboardType = KeyboardType.Text,
-                        imeAction = ImeAction.Done
+                        capitalization = KeyboardCapitalization.Sentences,
+                        imeAction = ImeAction.Done,
                     ),
                     singleLine = true,
                 )
             }
             LazyColumn {
-                items(repo.seznamUtrat/*.reversed()*/.sortedWith(razeni.razeni)) { utrata ->
-
-                    var zobrazitUpravitDialog by remember { mutableStateOf(false) }
-                    NovejDialog(
-                        pocatecniUtrata = utrata,
-                        zobrazit = zobrazitUpravitDialog,
-                        schovat = {
-                            zobrazitUpravitDialog = false
-                        },
-                        repo = repo,
-                        sNazvem = true,
-                        sCenou = true,
-                        naNejakeUcastniky = true,
-                        sJinymDatem = true,
-                    ) { novaUtrata ->
-                        repo.seznamUtrat = repo.seznamUtrat.mutate {
-                            this[indexOf(utrata)] = novaUtrata
-                        }
-                    }
+                items(
+                    seznamUtrat.sortedWith(razeni.razeni),
+                    key = { it.id }
+                ) { utrata ->
                     ListItem(
-                        headlineText = {
+                        headlineContent = {
                             Text(
                                 text = utrata.nazev + " – " + utrata.cena.toDouble()
-                                    .toString(2) + " " + repo.mena
+                                    .toString(2) + " " + mena
                             )
                         },
-                        supportingText = {
+                        supportingContent = {
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth(),
                                 horizontalArrangement = Arrangement.SpaceBetween
                             ) {
-                                Text(text = utrata.datum)
+                                Text(text = utrata.datum.asString())
                                 Text(text = when {
-                                    utrata.ucastnici.toSet() == repo.seznamUcastniku.map { it.id }
-                                        .toSet() -> ""
+                                    utrata.ucastnici.toSet() == seznamUcastniku.map { it.id }.toSet() -> ""
 
                                     utrata.ucastnici.isEmpty() -> "Žádný účastník"
-                                    else -> repo.seznamUcastniku.filter { it.id in utrata.ucastnici }
-                                        .joinToString { it.jmeno }
+                                    else -> seznamUcastniku.filter { it.id in utrata.ucastnici }.joinToString { it.jmeno }
                                 })
                             }
                         },
@@ -151,7 +148,7 @@ fun SeznamScreen(
                                     },
                                     onClick = {
                                         menuMoznosti = false
-                                        zobrazitUpravitDialog = true
+                                        upravitUtratuDialog = utrata
                                     }
                                 )
                                 DropdownMenuItem(
@@ -161,9 +158,9 @@ fun SeznamScreen(
                                     },
                                     onClick = {
                                         menuMoznosti = false
-                                        repo.seznamUtrat = repo.seznamUtrat.mutate {
+                                        repo.seznamUtrat(seznamUtrat.mutate {
                                             remove(utrata)
-                                        }
+                                        })
                                     }
                                 )
                             }
@@ -179,6 +176,29 @@ fun SeznamScreen(
                 }
             }
         }
+    }
+
+    UpravitUtratuDialog(
+        pocatecniUtrata = upravitUtratuDialog ?: Utrata.nova(seznamUcastniku),
+        zobrazit = upravitUtratuDialog != null,
+        schovat = {
+            upravitUtratuDialog = null
+        },
+        repo = repo,
+    ) { novaUtrata ->
+        repo.seznamUtrat(seznamUtrat.mutate {
+            this[indexOf(upravitUtratuDialog)] = novaUtrata
+        })
+    }
+    UpravitUtratuDialog(
+        pocatecniUtrata = Utrata.nova(seznamUcastniku),
+        zobrazit = novaUtrataDialog,
+        schovat = {
+            novaUtrataDialog = false
+        },
+        repo = repo,
+    ) { utrata ->
+        repo.seznamUtrat(seznamUtrat + utrata)
     }
 }
 

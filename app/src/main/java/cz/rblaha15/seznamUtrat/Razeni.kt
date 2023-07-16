@@ -6,6 +6,7 @@ import androidx.compose.material.icons.filled.Money
 import androidx.compose.material.icons.filled.NorthEast
 import androidx.compose.material.icons.filled.SouthEast
 import androidx.compose.ui.graphics.vector.ImageVector
+import java.time.LocalDateTime
 import java.util.*
 import kotlin.Comparator
 
@@ -19,29 +20,13 @@ enum class Razeni(
         text = "Datum (sestupně)",
         leadingIcon = Icons.Default.CalendarViewMonth,
         trailingIcon = Icons.Default.SouthEast,
-        razeni = compareByDescending {
-            val c = Calendar.getInstance()
-            c.set(Calendar.MONTH, it.datum.split(".")[1].replace(" ", "").replace(".", "").toInt())
-            c.set(Calendar.DAY_OF_MONTH, it.datum.split(".")[0].replace(" ", "").replace(".", "").toInt())
-            c.set(Calendar.HOUR_OF_DAY, it.cas.split(":")[0].replace(" ", "").replace(".", "").toInt())
-            c.set(Calendar.MINUTE, it.cas.split(":")[1].replace(" ", "").replace(".", "").toInt())
-            c.set(Calendar.SECOND, it.cas.split(":")[2].replace(" ", "").replace(".", "").toInt())
-            c
-        }
+        razeni = compareByDescending { it.datum.atTime(it.cas) }
     ),
     Datum2(
         text = "Datum (vzestupně)",
         leadingIcon = Icons.Default.CalendarViewMonth,
         trailingIcon = Icons.Default.NorthEast,
-        razeni = compareBy<Utrata> {
-            val c = Calendar.getInstance()
-            c.set(Calendar.MONTH, it.datum.split(".")[1].replace(" ", "").replace(".", "").toInt())
-            c.set(Calendar.DAY_OF_MONTH, it.datum.split(".")[0].replace(" ", "").replace(".", "").toInt())
-            c.set(Calendar.HOUR_OF_DAY, it.cas.split(":")[0].replace(" ", "").replace(".", "").toInt())
-            c.set(Calendar.MINUTE, it.cas.split(":")[1].replace(" ", "").replace(".", "").toInt())
-            c.set(Calendar.SECOND, it.cas.split(":")[2].replace(" ", "").replace(".", "").toInt())
-            c
-        }
+        razeni = compareBy { it.datum.atTime(it.cas) }
     ),
     Cena1(
         text = "Cena (sestupně)",
