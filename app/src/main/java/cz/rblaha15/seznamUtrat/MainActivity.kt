@@ -13,6 +13,8 @@ import androidx.navigation.compose.rememberNavController
 import cz.rblaha15.seznamUtrat.ui.SeznamScreen
 import cz.rblaha15.seznamUtrat.ui.UcastniciScreen
 import cz.rblaha15.seznamUtrat.ui.theme.SeznamUtratTheme
+import kotlin.math.pow
+import kotlin.math.roundToLong
 
 private lateinit var repo: UtratyRepository
 
@@ -50,10 +52,20 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-fun Double.toString(decimalPlaces: Int) = toString()
+fun Double.toString(decimalPlaces: Int) = this
+    .times(10F.pow(decimalPlaces))
+    .roundToLong()
+    .toDouble()
+    .div(10F.pow(decimalPlaces))
+    .toString()
     .split(".")
-    .mapIndexed { i, s -> if (i == 1) s.take(decimalPlaces) else s }
+    .let {
+        if (it[1] == "0") it.dropLast(1)
+        else it
+    }
     .joinToString(",")
+
+fun Float.toString(decimalPlaces: Int) = toDouble().toString(decimalPlaces)
 
 fun <T> List<T>.mutate(transform: MutableList<T>.() -> Unit) = buildList {
     addAll(this@mutate)

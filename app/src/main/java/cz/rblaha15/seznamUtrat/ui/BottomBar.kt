@@ -47,7 +47,8 @@ const val HORIZONTAL_PADDING = (PAGE_WIDTH - PRINTABLE_WIDTH) / 2 // PostScripts
 @Composable
 fun BottomBar(
     nastavitRazeni: (Razeni) -> Unit,
-    otevritDialog: () -> Unit,
+    novaUtrata: () -> Unit,
+    resetovatNazevAkce: () -> Unit,
     repo: UtratyRepository,
 ) = Column {
     val seznamUtrat by repo.seznamUtrat.collectAsState(emptyList())
@@ -137,11 +138,11 @@ fun BottomBar(
                             ${
                             seznamUcastniku
                                 .sortedByDescending { 
-                                    seznamUtrat.cloveka(it.id).sumOf { utrata -> utrata.cena.toDouble() }
+                                    seznamUtrat.cloveka(it.id).sumOf { utrata -> utrata.cena.toDouble() }.toString(2)
                                 }
                                 .joinToString("\n") { ucastnik ->
                                     "|    ${ucastnik.jmeno} – ${
-                                        seznamUtrat.cloveka(ucastnik.id).sumOf { (it.cena.toDouble() / it.ucastnici.size) }
+                                        seznamUtrat.cloveka(ucastnik.id).sumOf { (it.cena.toDouble() / it.ucastnici.size) }.toString(2)
                                     } $mena"
                                 }
                             }
@@ -153,8 +154,7 @@ fun BottomBar(
                                     val ucastnici =
                                         if (utrata.ucastnici != seznamUcastniku.map { it.id })
                                             " – pouze ${
-                                                seznamUcastniku.filter { it.id in utrata.ucastnici }
-                                                    .joinToString { it.jmeno }
+                                                seznamUcastniku.filter { it.id in utrata.ucastnici }.joinToString { it.jmeno }
                                             }"
                                         else ""
 
@@ -248,6 +248,7 @@ fun BottomBar(
                 confirmButton = {
                     TextButton(
                         onClick = {
+                            resetovatNazevAkce()
                             repo.seznamUtrat(emptyList())
                             repo.seznamUcastniku(emptyList())
                             repo.nazevAkce("")
@@ -289,7 +290,7 @@ fun BottomBar(
                         if (seznamUcastniku.isEmpty())
                             opravduNaNikoho = true
                         else
-                            otevritDialog()
+                            novaUtrata()
                     },
                 ) {
                     Icon(Icons.Default.AddCircle, "Přidat útratu")
@@ -302,7 +303,7 @@ fun BottomBar(
                         TextButton(
                             onClick = {
                                 opravduNaNikoho = false
-                                otevritDialog()
+                                novaUtrata()
                             }
                         ) {
                             Text(text = "Ano, pokračovat")

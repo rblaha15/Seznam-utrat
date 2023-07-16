@@ -90,7 +90,10 @@ fun UcastniciScreen(
                             this[i] = this[i].copy(jmeno = newValue)
                         })
                     },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text, imeAction = ImeAction.Next),
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Text,
+                        imeAction = ImeAction.Next
+                    ),
                     singleLine = true,
                 )
             }

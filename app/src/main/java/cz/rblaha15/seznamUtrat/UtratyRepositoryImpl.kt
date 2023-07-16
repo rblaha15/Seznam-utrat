@@ -112,5 +112,5 @@ class UtratyRepositoryImpl(private val ctx: ComponentActivity) : UtratyRepositor
     }
 }
 
-private inline fun <reified T> String.fromJson(): T = Json.decodeFromString(this)
-private inline fun <reified T> T.toJson(): String = Json.encodeToString(this)
+inline fun <reified T> String.fromJson(): T = Json.decodeFromString(this)
+inline fun <reified T> T.toJson(): String = Json.encodeToString(this)

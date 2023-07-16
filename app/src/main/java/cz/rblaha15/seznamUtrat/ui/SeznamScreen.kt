@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
@@ -32,11 +33,14 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
 import cz.rblaha15.seznamUtrat.FakeUtratyRepositoryImpl
 import cz.rblaha15.seznamUtrat.Razeni
+import cz.rblaha15.seznamUtrat.StateOfNulableUtrataSaver
 import cz.rblaha15.seznamUtrat.Utrata
 import cz.rblaha15.seznamUtrat.UtratyRepository
 import cz.rblaha15.seznamUtrat.asString
@@ -56,10 +60,11 @@ fun SeznamScreen(
     val seznamUtrat by repo.seznamUtrat.collectAsState(emptyList())
     val seznamUcastniku by repo.seznamUcastniku.collectAsState(emptyList())
     val nazevAkce by repo.nazevAkce.collectAsState("")
+    var localNazevAkce by rememberSaveable { mutableStateOf(nazevAkce) }
     val mena by repo.mena.collectAsState("")
 
-    var upravitUtratuDialog by rememberSaveable { mutableStateOf(null as Utrata?) }
-    var novaUtrataDialog by rememberSaveable { mutableStateOf(false) }
+    var upravitUtratuSheet by rememberSaveable(saver = StateOfNulableUtrataSaver) { mutableStateOf(null as Utrata?) }
+    var novaUtrataSheet by rememberSaveable { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
@@ -77,11 +82,18 @@ fun SeznamScreen(
             )
         },
         bottomBar = {
-            BottomBar(nastavitRazeni = {
-                razeni = it
-            }, otevritDialog = {
-                novaUtrataDialog = true
-            }, repo)
+            BottomBar(
+                nastavitRazeni = {
+                    razeni = it
+                },
+                novaUtrata = {
+                    novaUtrataSheet = true
+                },
+                resetovatNazevAkce = {
+                    localNazevAkce = ""
+                },
+                repo = repo,
+            )
         }
     ) { paddingValues ->
         Column(
@@ -90,12 +102,16 @@ fun SeznamScreen(
                 .fillMaxSize(),
         ) {
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 8.dp),
                 horizontalArrangement = Arrangement.Center
             ) {
+                val focusRequester = remember { FocusRequester() }
                 OutlinedTextField(
-                    value = nazevAkce,
+                    value = localNazevAkce,
                     onValueChange = {
+                        localNazevAkce = it
                         repo.nazevAkce(it)
                     },
                     label = { Text(text = "Název akce") },
@@ -103,6 +119,9 @@ fun SeznamScreen(
                         capitalization = KeyboardCapitalization.Sentences,
                         imeAction = ImeAction.Done,
                     ),
+                    keyboardActions = KeyboardActions {
+                        focusRequester.freeFocus()
+                    },
                     singleLine = true,
                 )
             }
@@ -148,7 +167,7 @@ fun SeznamScreen(
                                     },
                                     onClick = {
                                         menuMoznosti = false
-                                        upravitUtratuDialog = utrata
+                                        upravitUtratuSheet = utrata
                                     }
                                 )
                                 DropdownMenuItem(
@@ -178,23 +197,27 @@ fun SeznamScreen(
         }
     }
 
-    UpravitUtratuDialog(
-        pocatecniUtrata = upravitUtratuDialog ?: Utrata.nova(seznamUcastniku),
-        zobrazit = upravitUtratuDialog != null,
+    println(upravitUtratuSheet?.id)
+
+    UpravitUtratuSheet(
+        pocatecniUtrata = upravitUtratuSheet ?: Utrata.nova(seznamUcastniku),
+        zobrazit = upravitUtratuSheet != null,
         schovat = {
-            upravitUtratuDialog = null
+            upravitUtratuSheet = null
         },
         repo = repo,
     ) { novaUtrata ->
         repo.seznamUtrat(seznamUtrat.mutate {
-            this[indexOf(upravitUtratuDialog)] = novaUtrata
+            println(map { it.id })
+            println(novaUtrata.id)
+            this[indexOfFirst { it.id == novaUtrata.id }] = novaUtrata
         })
     }
-    UpravitUtratuDialog(
+    UpravitUtratuSheet(
         pocatecniUtrata = Utrata.nova(seznamUcastniku),
-        zobrazit = novaUtrataDialog,
+        zobrazit = novaUtrataSheet,
         schovat = {
-            novaUtrataDialog = false
+            novaUtrataSheet = false
         },
         repo = repo,
     ) { utrata ->
