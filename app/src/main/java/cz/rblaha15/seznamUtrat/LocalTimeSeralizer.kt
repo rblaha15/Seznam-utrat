@@ -6,7 +6,6 @@ import kotlinx.serialization.descriptors.PrimitiveSerialDescriptor
 import kotlinx.serialization.descriptors.SerialDescriptor
 import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
-import java.time.LocalDate
 import java.time.LocalTime
 
 class LocalTimeSeralizer : KSerializer<LocalTime> {
@@ -14,7 +13,7 @@ class LocalTimeSeralizer : KSerializer<LocalTime> {
         val str = decoder.decodeString()
         val h = str.split(":")[0].replace(" ", "").toInt()
         val m = str.split(":")[1].replace(" ", "").toInt()
-        val s = str.split(":")[2].replace(" ", "").toInt()
+        val s = str.split(":").getOrElse(2) { "0" }.replace(" ", "").toInt()
         return LocalTime.of(h, m, s)
     }
 
