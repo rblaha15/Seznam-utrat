@@ -61,6 +61,7 @@ fun Double.toString(decimalPlaces: Int) = this
     .split(".")
     .let {
         if (it[1] == "0") it.dropLast(1)
+        else if (it[1].length == 1) listOf(it[0], "${it[1]}0")
         else it
     }
     .joinToString(",")
