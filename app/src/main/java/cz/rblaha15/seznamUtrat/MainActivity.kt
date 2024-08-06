@@ -3,25 +3,48 @@ package cz.rblaha15.seznamUtrat
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.animation.core.CubicBezierEasing
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
+import androidx.datastore.preferences.SharedPreferencesMigration
+import androidx.datastore.preferences.core.PreferenceDataStoreFactory
+import androidx.datastore.preferences.preferencesDataStoreFile
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-import cz.rblaha15.seznamUtrat.ui.SeznamScreen
-import cz.rblaha15.seznamUtrat.ui.UcastniciScreen
+import cz.rblaha15.seznamUtrat.data.LocalDataSource
+import cz.rblaha15.seznamUtrat.data.LocalDataSourceImpl
+import cz.rblaha15.seznamUtrat.ui.seznam.Seznam
 import cz.rblaha15.seznamUtrat.ui.theme.SeznamUtratTheme
+import cz.rblaha15.seznamUtrat.ui.ucastnici.Ucastnici
 import kotlin.math.pow
 import kotlin.math.roundToLong
 
-private lateinit var repo: UtratyRepository
+private lateinit var ds: LocalDataSource
 
 class MainActivity : ComponentActivity() {
     init {
-        if (!::repo.isInitialized)
-            repo = UtratyRepositoryImpl(this)
+        if (!::ds.isInitialized)
+            ds = LocalDataSourceImpl(
+                dataStore = PreferenceDataStoreFactory.create(
+                    migrations = listOf(
+                        SharedPreferencesMigration(
+                            produceSharedPreferences = {
+                                getSharedPreferences("PREFS_SEZNAM_UTRAT_RBLAHA15", MODE_PRIVATE)
+                            }
+                        )
+                    )
+                ) {
+                    this.preferencesDataStoreFile("PREFS_SEZNAM_UTRAT_RBLAHA15")
+                }
+            )
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -35,15 +58,37 @@ class MainActivity : ComponentActivity() {
                     val navController = rememberNavController()
                     NavHost(
                         navController = navController,
-                        startDestination = "seznam"
+                        startDestination = "seznam",
+                        popEnterTransition = {
+                            scaleIn(
+                                animationSpec = tween(
+                                    durationMillis = 100,
+                                    delayMillis = 35,
+                                ),
+                                initialScale = 1.1F,
+                            ) + fadeIn(
+                                animationSpec = tween(
+                                    durationMillis = 100,
+                                    delayMillis = 35,
+                                ),
+                            )
+                        },
+                        popExitTransition = {
+                            scaleOut(
+                                targetScale = 0.9F,
+                            ) + fadeOut(
+                                animationSpec = tween(
+                                    durationMillis = 35,
+                                    easing = CubicBezierEasing(0.1f, 0.1f, 0f, 1f),
+                                ),
+                            )
+                        },
                     ) {
                         composable(route = "seznam") {
-                            SeznamScreen(repo) {
-                                navController.navigate(it)
-                            }
+                            Seznam(ds, navController)
                         }
                         composable(route = "ucastnici") {
-                            UcastniciScreen(repo)
+                            Ucastnici(ds, navController)
                         }
                     }
                 }
@@ -67,8 +112,3 @@ fun Double.toString(decimalPlaces: Int) = this
     .joinToString(",")
 
 fun Float.toString(decimalPlaces: Int) = toDouble().toString(decimalPlaces)
-
-fun <T> List<T>.mutate(transform: MutableList<T>.() -> Unit) = buildList {
-    addAll(this@mutate)
-    transform()
-}
