@@ -93,6 +93,7 @@ fun BottomBar(
                     "Kč",
                     "€",
                     "$",
+                    "£",
                 ).forEach {
                     DropdownMenuItem(
                         text = { Text(text = it) },
